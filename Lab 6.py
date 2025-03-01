@@ -1,6 +1,10 @@
 ''' Lab 6 Install VLC automated
 Tue Feb 18
 '''
+### STUDENTS: PLEASE ADD THE STANDARD ACADEMIC INTEGRITY STATEMENT.###
+# This program is strictly my own work. Any material beyond course learning
+# materials that is taken from the Web or other sources is properly cited,
+# giving credit to the original author(s).
 
 import requests
 import hashlib
@@ -8,55 +12,78 @@ import pathlib
 import os
 import subprocess
 
-# The URL is in the VLC download archive.
-
-BASE_URL = "https://download.videolan.org/pub/videolan/vlc/3.0.21/win64/"
+# Define VLC version and URLs
+VLC_VERSION = "3.0.21"
+BASE_URL = f"https://download.videolan.org/pub/videolan/vlc/{VLC_VERSION}/win64"
 FILE_NAME_SHA256 = "vlc-3.0.21-win64.exe.sha256"
 FILE_NAME = "vlc-3.0.21-win64.exe"
 
-# Part 1 - Get the expected SHA-256 fingerprint for the instalation file
-# Make the request with the full URL to the file
-response = requests.get(f'{BASE_URL}/{FILE_NAME_SHA256}')
-if not response.ok:
-    print("Did not get the SHA256 file. Exiting...")
-    exit()
-resp_text = response.text
-file_sha256 = resp_text.split()[0] # Break up at the blank, keep the SHA256
-print(file_sha256)
+# Function to get the expected SHA-256 hash value from VLC website
+def get_expected_sha256():
+    response = requests.get(f"{BASE_URL}/{FILE_NAME_SHA256}")
+    if not response.ok:
+        print("Failed to get the expected SHA-256 hash. Exiting...")
+        exit()
+    return response.text.split()[0]  # Extract SHA256 hash from response
 
-# Part 2 - Get the installation file, keep in memory until checked.
-# Make the request with the full URL to the installation file
-response = requests.get(f'{BASE_URL}/{FILE_NAME}')
-if not response.ok:
-    print("Did no get the installation file. Exiting...")
-    exit()
-file_binary = response.content # Binary content (not text or string)
-print(len(file_binary)) # Should be approx. 45Mbytes
+# Function to download the VLC installer (without saving)
+def download_installer():
+    response = requests.get(f"{BASE_URL}/{FILE_NAME}", stream=True)
+    if not response.ok:
+        print("Failed to download VLC installer. Exiting...")
+        exit()
+    
+    file_data = bytearray()
+    for chunk in response.iter_content(chunk_size=8192):
+        file_data.extend(chunk)
+    
+    return file_data
 
-# Part 3 - Compute the SHA-256 of the binary response with haslib
-# Create a new SHA256 object
-sha256 = hashlib.sha256(file_binary)
-print(sha256.hexdigest())
+# Function to verify SHA-256 hash integrity
+def installer_ok(installer_data, expected_sha256):
+    sha256 = hashlib.sha256(installer_data).hexdigest()
+    return sha256 == expected_sha256
 
-# Part 4 - Compare expected and SHA-256 hash values
-if not sha256.hexdigest() == file_sha256:
-    print("Download SHA-256 does not match expected value. Exiting...")
-    exit()
+# Function to save the installer to disk
+def save_installer(installer_data):
+    file_path = pathlib.Path(os.getenv('TEMP')) / FILE_NAME
+    with open(file_path, "wb") as outfile:
+        outfile.write(installer_data)
+    return file_path
 
-# Part 5 - Save the installation file so that it can run
-print("SHA-256 values match, saving the file...")
-file_name = pathlib.Path(os.getenv('TEMP')) / FILE_NAME
-print(f"File name: {file_name}")
-with open(file_name, "wb") as outfile: # Write a binary file
-    outfile.write(file_binary)
-# File written and now closed
+# Function to silently run the VLC installer
+def run_installer(installer_path):
+    subprocess.run([str(installer_path), "/L=1033", "/S"], check=True)
+    print("Installation completed successfully.")
 
+# Function to delete the installer after installation
+def delete_installer(installer_path):
+    installer_path.unlink()
+    print("Installer deleted.")
 
-# Part 6 - Run the installation file and if success delete when done.
-subprocess.run([file_name, '/L=1033', '/S'])
-# Check that subprosess ran correctly but you need to run the script
-# as administrator from shell
+# Main function to automate VLC installation
+def main():
+    # Get expected SHA-256 hash from VLC website
+    expected_sha256 = get_expected_sha256()
 
-# Delete the installation file using pathlib.Path.unlink()
+    # Download installer (keep in memory)
+    installer_data = download_installer()
+
+    # Verify SHA-256 hash
+    if installer_ok(installer_data, expected_sha256):
+        # Save the installer
+        installer_path = save_installer(installer_data)
+        
+        # Run the installer silently
+        run_installer(installer_path)
+        
+        # Delete the installer after installation
+        delete_installer(installer_path)
+    else:
+        print("SHA-256 hash mismatch! Exiting...")
+
+# Run main() when the script is executed
+if __name__ == "__main__":
+    main()
 
 
