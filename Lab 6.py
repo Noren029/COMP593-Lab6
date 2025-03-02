@@ -63,18 +63,19 @@ def delete_installer(installer_path):
 
 # Main function to automate VLC installation
 def main():
-    # Get expected SHA-256 hash from VLC website
+    # Get the expected SHA-256 hash value of the VLC installer
     expected_sha256 = get_expected_sha256()
 
-    # Download installer (keep in memory)
+    # Download (but don't save) the VLC installer from the VLC website
     installer_data = download_installer()
 
-    # Verify SHA-256 hash
+    # Verify the integrity of the downloaded VLC installer by comparing the
+    # expected and computed SHA-256 hash values
     if installer_ok(installer_data, expected_sha256):
-        # Save the installer
+        # Save the downloaded VLC installer to disk
         installer_path = save_installer(installer_data)
         
-        # Run the installer silently
+        # Silently run the VLC installer
         run_installer(installer_path)
         
         # Delete the installer after installation
