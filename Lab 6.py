@@ -13,12 +13,13 @@ import os
 import subprocess
 
 # Define VLC version and URLs
-VLC_VERSION = "3.0.21"
-BASE_URL = f"https://download.videolan.org/pub/videolan/vlc/{VLC_VERSION}/win64"
+VERSION = "3.0.21"
+BASE_URL = f"https://download.videolan.org/pub/videolan/vlc/{VERSION}/win64"
 FILE_NAME_SHA256 = "vlc-3.0.21-win64.exe.sha256"
 FILE_NAME = "vlc-3.0.21-win64.exe"
 
-# Function to get the expected SHA-256 hash value from VLC website
+# Part 1 - Get the expected SHA-256 fingerprint for the instalation file
+# Make the request with the full URL to the file
 def get_expected_sha256():
     response = requests.get(f"{BASE_URL}/{FILE_NAME_SHA256}")
     if not response.ok:
@@ -26,7 +27,8 @@ def get_expected_sha256():
         exit()
     return response.text.split()[0]  # Extract SHA256 hash from response
 
-# Function to download the VLC installer (without saving)
+# Part 2 - Get the installation file, keep in memory until checked.
+# Make the request with the full URL to the installation file
 def download_installer():
     response = requests.get(f"{BASE_URL}/{FILE_NAME}", stream=True)
     if not response.ok:
@@ -39,7 +41,8 @@ def download_installer():
     
     return file_data
 
-# Function to verify SHA-256 hash integrity
+# Part 3 - Compute the SHA-256 of the binary response with haslib
+# Create a new SHA256 object
 def installer_ok(installer_data, expected_sha256):
     sha256 = hashlib.sha256(installer_data).hexdigest()
     return sha256 == expected_sha256
